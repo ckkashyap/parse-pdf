@@ -3,6 +3,18 @@
   (:require [parse-pdf.pdf :as pdf])
   (:require [the.parsatron :as p]))
 
+
+
+
+(println (p/run (pdf/pdf-boolean-parser) (pdf/string-to-byte-vector " false")))
+(println (p/run (pdf/pdf-numeric-parser) (pdf/string-to-byte-vector " 1")))
+(println (p/run (pdf/pdf-numeric-parser) (pdf/string-to-byte-vector " +1")))
+(println (p/run (pdf/pdf-numeric-parser) (pdf/string-to-byte-vector " -0.0")))
+(println (p/run (pdf/pdf-numeric-parser) (pdf/string-to-byte-vector " -.1")))
+(println (p/run (pdf/pdf-numeric-parser) (pdf/string-to-byte-vector " -10")))
+
+
+
 (let [
       f (io/file "hello.pdf") ;  the file contains "abcdefg"
       l (. f length)

@@ -4,6 +4,7 @@
 (p/defparser optional [p default-value] 
   (p/either (p/attempt p) (p/always default-value))) 
 
+; delimiters ( ) < > [ ] { } / %
 
 (defn non-newline
   []
@@ -11,7 +12,7 @@
 
 (defn whitespace-parser
   []
-  (p/token #(#{32 10 9  13} %)))
+  (p/token #(#{0 9 10 12 13 32} %)))
 
 
 (defn digit
@@ -21,14 +22,9 @@
 
 
 (defn number-parser []
-  (p/let->> [
-             num_vec (p/many (digit))
-             ]
-            (let [
-                  num_str (apply str (map char num_vec))
-                  ]
+  (p/let->> [ num_vec (p/many1 (digit)) ]
+            (let [ num_str (apply str (map char num_vec)) ]
               (p/always num_str))))
-
 
 (defn string-to-byte-vector [str]
   (into [] (map int str)))
@@ -52,10 +48,47 @@
              ]
             (p/always {:pdf-comment pdf-comment-text})))
 
-(p/defparser pdf-dictionary []
-  (p/always 123))
 
 (def pdf-object)
+
+(p/defparser pdf-boolean-parser []
+  (p/let->> [
+             _ (p/many (whitespace-parser))
+             _t (optional (p/string (string-to-byte-vector "true")) nil)
+             _f (optional (p/string (string-to-byte-vector "false")) nil)
+             ] (if _t (p/always true) (if _f (p/always false) nil))))
+           
+(p/defparser -sign-parser []
+  (p/let->> [
+             _ (p/many (whitespace-parser))             
+            _minus (optional (p/char 45) nil)
+            _plus (optional (p/char 43) nil)
+             ]
+            (if _minus (p/always "-") (p/always "+"))))
+
+(p/defparser -float-parser []
+  (p/let->> [
+             _ (p/char 46)
+             _n (number-parser)
+             ] (p/always _n)))
+
+(p/defparser pdf-numeric-parser []
+  (p/let->> [
+             _sign (-sign-parser)
+             _n1 (optional (number-parser) 0)
+             _n2 (optional (-float-parser) nil)
+             ] (if _n2 (p/always (str _sign _n1 "." _n2)) (p/always (str _sign _n1)))))
+            
+             
+  
+
+;(p/defparser pdf-name-parser []
+  
+
+;(p/defparser pdf-dictionary []
+;  (p/let->> [
+;             _ (p/string (string-to-byte-vector "<<"))
+             
 
 (p/defparser pdf-indirect-object []
   (p/let->> [
@@ -78,7 +111,7 @@
              c (optional (pdf-comment) nil)
              object (optional (pdf-indirect-object) nil)
              ]
-            (p/always {:object object})))
+            (p/always {:object object :comment c})))
 
 
 (p/defparser pdf-body-parser [header]
