@@ -79,8 +79,23 @@
              _n2 (optional (-float-parser) nil)
              ] (if _n2 (p/always (str _sign _n1 "." _n2)) (p/always (str _sign _n1)))))
             
+(p/defparser -char-parser []
+  (p/let->> [
+             _e (optional (p/char 92) nil)
+             _c (if _e (p/token #(#{41 92} %)) (p/token #(not= % 41)))
+             ] (p/always _c)))
              
+
+(p/defparser pdf-string-parser []
+  (p/let->> [
+             _ (p/many (whitespace-parser))
+             _ (p/char 40)
+             _str (p/many (-char-parser))
+             _ (p/char 41)
+             ] (p/always (apply str (map char _str)))))
+
   
+
 
 ;(p/defparser pdf-name-parser []
   

@@ -13,6 +13,8 @@
 (println (p/run (pdf/pdf-numeric-parser) (pdf/string-to-byte-vector " -.1")))
 (println (p/run (pdf/pdf-numeric-parser) (pdf/string-to-byte-vector " -10")))
 
+(println (p/run (pdf/pdf-string-parser) (pdf/string-to-byte-vector "(slkfdlkj\\)  \\\\ d)")))
+
 
 
 (let [
