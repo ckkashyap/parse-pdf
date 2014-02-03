@@ -6,15 +6,23 @@
 
 ; delimiters ( ) < > [ ] { } / %
 
+(def whitespace-set #{0 9 10 12 13 32})
+(def delimiter-set #{37 40 41 47 60 62 91 93 123 125})
+
 (defn non-newline
   []
   (p/token #(and (not= % 10) (not= % 13 ))))
 
 (defn whitespace-parser
   []
-  (p/token #(#{0 9 10 12 13 32} %)))
+  (p/token #(whitespace-set %)))
 
+(p/defparser delimiter-parser []
+  (p/token #(delimiter-set %)))
 
+(p/defparser neither-delimiter-nor-whitespace []
+  (p/token #(not (or (whitespace-set %) (delimiter-set %)))))
+             
 (defn digit
   "Consume a digit [0-9] character"
   []
@@ -85,7 +93,6 @@
              _c (if _e (p/token #(#{41 92} %)) (p/token #(not= % 41)))
              ] (p/always _c)))
              
-
 (p/defparser pdf-string-parser []
   (p/let->> [
              _ (p/many (whitespace-parser))
@@ -94,15 +101,32 @@
              _ (p/char 41)
              ] (p/always (apply str (map char _str)))))
 
+(p/defparser pdf-name-parser []
+  (p/let->> [
+             _ (p/many (whitespace-parser))
+             _ (p/char 47)
+             _str (p/many (neither-delimiter-nor-whitespace))
+             ] (p/always (apply str (map char _str)))))
+
   
 
 
-;(p/defparser pdf-name-parser []
+(p/defparser pdf-dictionary-key-value []
+  (p/let->> [
+             _key (pdf-name-parser)
+             _ (p/many (whitespace-parser))
+             _value (pdf-object)
+             ] (p/always {:key _key :value _value})))
+  
   
 
-;(p/defparser pdf-dictionary []
-;  (p/let->> [
-;             _ (p/string (string-to-byte-vector "<<"))
+(p/defparser pdf-dictionary []
+  (p/let->> [
+             _ (p/string (string-to-byte-vector "<<"))
+             _key_values (p/many1 (pdf-dictionary-key-value))
+             _ (p/string (string-to-byte-vector ">>"))
+             ] (p/always _key_values)))
+                     
              
 
 (p/defparser pdf-indirect-object []
@@ -123,17 +147,27 @@
 
 (p/defparser pdf-object []
   (p/let->> [
+             _ (p/many (whitespace-parser))
+             _name  (optional (pdf-name-parser) nil)
              c (optional (pdf-comment) nil)
-             object (optional (pdf-indirect-object) nil)
+             _object (optional (pdf-indirect-object) nil)
+             _dict  (optional (pdf-dictionary) nil)
+             _ (p/many (whitespace-parser))
              ]
-            (p/always {:object object :comment c})))
-
+            (p/always (cond
+                       _object {:indirect-object _object}
+                       _name {:name _name}
+                       _dict {:dictionary _dict}
+                       c {:comment c}
+                       true {:object nil}
+                       ))))
+                       
 
 (p/defparser pdf-body-parser [header]
  (p/let->> [
             o1 (pdf-object)
             ;o2 (pdf-object)
-            ] (p/always [o1])))
+            ] (p/always [o1 ])))
 
 
 (p/defparser pdf-xref-table-parser [header body]

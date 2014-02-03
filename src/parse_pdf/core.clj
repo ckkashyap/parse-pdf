@@ -15,6 +15,8 @@
 
 (println (p/run (pdf/pdf-string-parser) (pdf/string-to-byte-vector "(slkfdlkj\\)  \\\\ d)")))
 
+(println (p/run (pdf/pdf-name-parser) (pdf/string-to-byte-vector "/Hel[lo![")))
+
 
 
 (let [
