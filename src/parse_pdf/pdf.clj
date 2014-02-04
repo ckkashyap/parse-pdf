@@ -83,9 +83,9 @@
 (p/defparser pdf-numeric-parser []
   (p/let->> [
              _sign (-sign-parser)
-             _n1 (optional (number-parser) 0)
+             _n1 (optional (number-parser) nil)
              _n2 (optional (-float-parser) nil)
-             ] (if _n2 (p/always (str _sign _n1 "." _n2)) (p/always (str _sign _n1)))))
+             ] (if _n2 (p/always (str _sign _n1 "." _n2)) (if _n1 (p/always (str _sign _n1)) (p/never)))))
             
 (p/defparser -char-parser []
   (p/let->> [
@@ -110,12 +110,25 @@
 
   
 
+(p/defparser pdf-indirect-reference []
+  (p/let->> [
+             _ (p/many (whitespace-parser))
+             object-number (number-parser)
+             _ (p/many (whitespace-parser))
+             object-generation (number-parser)
+             _ (p/many (whitespace-parser))
+            _ (p/char (int \R))
+             _ (p/many (whitespace-parser))
+             ] (p/always {:ref-object-number object-number :ref-object-generation object-generation})))
+  
+
 
 (p/defparser pdf-dictionary-key-value []
   (p/let->> [
              _key (pdf-name-parser)
              _ (p/many (whitespace-parser))
              _value (pdf-object)
+             _ (p/many (whitespace-parser))
              ] (p/always {:key _key :value _value})))
   
   
@@ -137,37 +150,34 @@
              object-generation (number-parser)
              _ (p/many (whitespace-parser))
              _ (p/string (string-to-byte-vector "obj"))
+             _ (p/many (whitespace-parser))
              object-body (pdf-object)
              _ (p/many (whitespace-parser))
              _ (p/string (string-to-byte-vector "endobj"))
              ]
-            (p/always {:object-number object-number :object-generation object-generation :object-body object-body})))
-
+            (p/always {:object-number object-number :object-genertion object-generation :object-body object-body})))
 
 
 (p/defparser pdf-object []
-  (p/let->> [
-             _ (p/many (whitespace-parser))
-             _name  (optional (pdf-name-parser) nil)
-             c (optional (pdf-comment) nil)
-             _object (optional (pdf-indirect-object) nil)
-             _dict  (optional (pdf-dictionary) nil)
-             _ (p/many (whitespace-parser))
-             ]
-            (p/always (cond
-                       _object {:indirect-object _object}
-                       _name {:name _name}
-                       _dict {:dictionary _dict}
-                       c {:comment c}
-                       true {:object nil}
-                       ))))
-                       
+  (p/choice
+             (p/attempt (pdf-comment))
+             (p/attempt (pdf-indirect-object))
+             (p/attempt (pdf-indirect-reference))
+             (p/attempt (pdf-name-parser))
+             (p/attempt (pdf-dictionary))
+             (p/attempt (pdf-numeric-parser))
+             (p/always "FALIED PARSING")
+             ))
+ 
 
 (p/defparser pdf-body-parser [header]
  (p/let->> [
+             _ (p/many (whitespace-parser))
             o1 (pdf-object)
-            ;o2 (pdf-object)
-            ] (p/always [o1 ])))
+             _ (p/many (whitespace-parser))
+             o2 (pdf-object)
+ 
+            ] (p/always [o1 o2])))
 
 
 (p/defparser pdf-xref-table-parser [header body]

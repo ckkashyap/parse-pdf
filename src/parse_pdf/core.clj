@@ -4,10 +4,26 @@
   (:require [the.parsatron :as p]))
 
 
+(defn helloParser []
+  (p/string "hello"))
+(defn worldParser []
+  (p/string "world"))
+
+
+(p/defparser p []
+  (p/choice
+             (p/attempt (helloParser))
+             (p/attempt (worldParser))
+             (p/always "WHAT THE HELL")
+             ))
+
+            
+(println (p/run (p) "123"))
+
 
 
 (println (p/run (pdf/pdf-boolean-parser) (pdf/string-to-byte-vector " false")))
-(println (p/run (pdf/pdf-numeric-parser) (pdf/string-to-byte-vector " 1")))
+(println (p/run (pdf/pdf-numeric-parser) (pdf/string-to-byte-vector " 2")))
 (println (p/run (pdf/pdf-numeric-parser) (pdf/string-to-byte-vector " +1")))
 (println (p/run (pdf/pdf-numeric-parser) (pdf/string-to-byte-vector " -0.0")))
 (println (p/run (pdf/pdf-numeric-parser) (pdf/string-to-byte-vector " -.1")))
