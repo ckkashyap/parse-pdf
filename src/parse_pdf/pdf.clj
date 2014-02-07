@@ -17,6 +17,22 @@
   []
   (p/token #(whitespace-set %)))
 
+
+(defn parse-n-items
+  [n]
+  (fn [state cok cerr eok eerr]
+    (let [
+          input (:input state)
+          pos (:pos state)
+          line (:line pos)
+          column (:column pos)
+          y (take n input)
+          state' (conj state [:input (drop n input) (conj pos [:line (inc line) :column 0])])
+          ]
+    (eok y state'))))
+
+
+
 (p/defparser delimiter-parser []
   (p/token #(delimiter-set %)))
 
