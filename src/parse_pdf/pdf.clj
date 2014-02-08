@@ -7,6 +7,7 @@
 ; delimiters ( ) < > [ ] { } / %
 
 (def whitespace-set #{0 9 10 12 13 32})
+
 (def delimiter-set #{37 40 41 47 60 62 91 93 123 125})
 
 (defn non-newline
@@ -33,10 +34,15 @@
 (defn number-parser []
   (p/let->> [ num_vec (p/many1 (digit)) ]
             (let [ num_str (apply str (map char num_vec)) ]
-              (p/always num_str))))
+              (p/always (Integer/parseInt num_str)))))
 
 (defn string-to-byte-vector [str]
   (into [] (map int str)))
+
+(p/defparser pdf-newline-parser []
+  (p/choice
+   (p/string (string-to-byte-vector "\r\n"))
+   (p/char 10)))
 
 (p/defparser pdf-header-parser []
   (p/let->> [
@@ -86,7 +92,7 @@
              _sign (-sign-parser)
              _n1 (optional (number-parser) nil)
              _n2 (optional (-float-parser) nil)
-             ] (if _n2 (p/always (str _sign _n1 "." _n2)) (if _n1 (p/always (str _sign _n1)) (p/never)))))
+             ] (if _n2 (p/always (Float/parseFloat (str _sign _n1 "." _n2))) (if _n1 (p/always (Integer/parseInt (str _sign _n1))) (p/never)))))
             
 (p/defparser -char-parser []
   (p/let->> [
@@ -144,18 +150,21 @@
 
 
 
-(defn pdf-stream? [body]
+(defn pdf-stream-length [body]
   (if (= :dictionary (:type body))
     ((:data body) "Length")
     false))
 
+
 (p/defparser pdf-stream-parser
   [body]
-  (let [
-        length (pdf-stream? body)
-        _ (println "HELLO123 " length body)
+  (p/let->> [
+             _ (p/string (string-to-byte-vector "stream"))
+             _ (pdf-newline-parser)
+             _stream (p/times (pdf-stream-length body) (p/token #(not= nil %)))
+             b  (p/string (string-to-byte-vector "endstream"))        
         ]
-  (if length (p/always true) (p/always false))))
+  (if true (p/always [123 _stream])  (p/always false))))
 
 
 (p/defparser pdf-indirect-object []
@@ -170,9 +179,10 @@
              object-body (pdf-object)
              _ (p/many (whitespace-parser))
              object-stream (optional (pdf-stream-parser object-body) nil)
+             _ (p/many (whitespace-parser))
              _ (p/string (string-to-byte-vector "endobj"))
              ]
-            (p/always {:type :indirect-object :object-number object-number :object-genertion object-generation :object-body object-body})))
+            (p/always {:type :indirect-object :object-number object-number :object-genertion object-generation :object-body object-body :object-stream object-stream})))
 
 
 (p/defparser pdf-object []
@@ -193,8 +203,10 @@
             o1 (pdf-object)
              _ (p/many (whitespace-parser))
              o2 (pdf-object)
+             _ (p/many (whitespace-parser))
+             o3 (pdf-object)
  
-            ] (p/always [o1 o2])))
+            ] (p/always [o1 o2 o3])))
 
 
 (p/defparser pdf-xref-table-parser [header body]
