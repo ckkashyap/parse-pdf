@@ -149,6 +149,16 @@
                      
 
 
+(p/defparser pdf-array []
+  (p/let->> [
+             _ (p/char (int \[))
+             _values (p/many1 (pdf-object))
+             _ (p/many (whitespace-parser))
+             _ (p/char (int \]))
+             ] (p/always (into [] _values))))
+                     
+
+
 
 (defn pdf-stream-length [body]
   (if (= :dictionary (:type body))
@@ -192,8 +202,8 @@
              (p/attempt (pdf-indirect-reference))
              (p/attempt (pdf-name-parser))
              (p/attempt (pdf-dictionary))
+             (p/attempt (pdf-array))
              (p/attempt (pdf-numeric-parser))
-             (p/always "FALIED PARSING")
              ))
  
 
@@ -204,7 +214,7 @@
              _ (p/many (whitespace-parser))
              o2 (pdf-object)
              _ (p/many (whitespace-parser))
-             o3 (pdf-object)
+            o3 (pdf-object)
  
             ] (p/always [o1 o2 o3])))
 
