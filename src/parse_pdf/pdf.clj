@@ -10,6 +10,12 @@
 
 (def delimiter-set #{37 40 41 47 60 62 91 93 123 125})
 
+
+(defn safe-char [b]
+  (cond
+   (< b 0) \.
+   true (char b)))
+
 (defn non-newline
   []
   (p/token #(and (not= % 10) (not= % 13 ))))
@@ -106,14 +112,14 @@
              _ (p/char 40)
              _str (p/many (-char-parser))
              _ (p/char 41)
-             ] (p/always {:type :string :data (apply str (map char _str))})))
+             ] (p/always {:type :string :data (apply str (map safe-char _str))})))
 
 (p/defparser pdf-name-parser []
   (p/let->> [
              _ (p/many (whitespace-parser))
              _ (p/char 47)
              _str (p/many (neither-delimiter-nor-whitespace))
-             ] (p/always {:type :name :data (apply str (map char _str))})))
+             ] (p/always {:type :name :data (apply str (map safe-char _str))})))
 
   
 
@@ -169,10 +175,11 @@
 (p/defparser pdf-stream-parser
   [body]
   (p/let->> [
+             _ (p/many (whitespace-parser))
              _ (p/string (string-to-byte-vector "stream"))
              _ (pdf-newline-parser)
              _stream (p/times (pdf-stream-length body) (p/token #(not= nil %)))
-             b  (p/string (string-to-byte-vector "endstream"))        
+             _  (p/string (string-to-byte-vector "endstream"))        
         ]
   (if true (p/always [123 _stream])  (p/always false))))
 
@@ -204,18 +211,26 @@
              (p/attempt (pdf-dictionary))
              (p/attempt (pdf-array))
              (p/attempt (pdf-numeric-parser))
+             (p/attempt (pdf-string-parser))
              ))
  
+
+(p/defparser pdf-body-parser1 [header]
+ (p/let->> [
+             _ (p/many (whitespace-parser))
+            o1 (pdf-object)
+            o2 (pdf-object)
+            o3 (pdf-object)
+ 
+            ] (p/always [o1 o2 o3])))
 
 (p/defparser pdf-body-parser [header]
  (p/let->> [
              _ (p/many (whitespace-parser))
             o1 (pdf-object)
-             _ (p/many (whitespace-parser))
-             o2 (pdf-object)
-             _ (p/many (whitespace-parser))
+            o2 (pdf-object)
             o3 (pdf-object)
- 
+
             ] (p/always [o1 o2 o3])))
 
 
