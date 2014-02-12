@@ -1,6 +1,20 @@
 (ns parse-pdf.pdf
   (:require [the.parsatron :as p]))
 
+
+(defn parse-n-items
+  [n]
+  (fn [state cok cerr eok eerr]
+    (let [
+          input (:input state)
+          pos (:pos state)
+          line (:line pos)
+          column (:column pos)
+          y (take n input)
+          state' (conj state [:input (drop n input) (conj pos [:line (inc line) :column 0])])
+          ]
+    (eok y state'))))
+
 (p/defparser optional [p default-value] 
   (p/either (p/attempt p) (p/always default-value))) 
 
@@ -178,7 +192,8 @@
              _ (p/many (whitespace-parser))
              _ (p/string (string-to-byte-vector "stream"))
              _ (pdf-newline-parser)
-             _stream (p/times (pdf-stream-length body) (p/token #(not= nil %)))
+;             _stream (p/times (pdf-stream-length body) (p/token #(not= nil %)))
+             _stream (parse-n-items (pdf-stream-length body))
              _  (p/string (string-to-byte-vector "endstream"))        
         ]
   (if true (p/always [123 _stream])  (p/always false))))
@@ -215,23 +230,13 @@
              ))
  
 
-(p/defparser pdf-body-parser1 [header]
- (p/let->> [
-             _ (p/many (whitespace-parser))
-            o1 (pdf-object)
-            o2 (pdf-object)
-            o3 (pdf-object)
- 
-            ] (p/always [o1 o2 o3])))
 
 (p/defparser pdf-body-parser [header]
  (p/let->> [
              _ (p/many (whitespace-parser))
-            o1 (pdf-object)
-            o2 (pdf-object)
-            o3 (pdf-object)
+            o (p/times 1 (pdf-object))
 
-            ] (p/always [o1 o2 o3])))
+            ] (p/always o)))
 
 
 (p/defparser pdf-xref-table-parser [header body]
