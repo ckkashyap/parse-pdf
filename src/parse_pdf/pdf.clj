@@ -192,8 +192,8 @@
              _ (p/many (whitespace-parser))
              _ (p/string (string-to-byte-vector "stream"))
              _ (pdf-newline-parser)
-;             _stream (p/times (pdf-stream-length body) (p/token #(not= nil %)))
              _stream (parse-n-items (pdf-stream-length body))
+             _ (p/many (whitespace-parser))
              _  (p/string (string-to-byte-vector "endstream"))        
         ]
   (if true (p/always [123 _stream])  (p/always false))))
@@ -234,7 +234,7 @@
 (p/defparser pdf-body-parser [header]
  (p/let->> [
              _ (p/many (whitespace-parser))
-            o (p/times 1 (pdf-object))
+            o (p/many1 (pdf-object))
 
             ] (p/always o)))
 
